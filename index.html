@@ -864,16 +864,27 @@
     
     <!-- Código de referido personal -->
     <div class="mt-4">
-        <label class="form-label fw-bold">TU CÓDIGO DE REFERIDO</label>
-        <div class="input-group">
-            <input type="text" class="form-control form-control-loop" id="userReferralCode" 
-                   value="Conecta tu wallet" readonly>
-            <button class="btn btn-loop" onclick="copyReferralCode()">
-                <i class="bi bi-copy"></i> Copiar
-            </button>
-        </div>
-        <small class="text-muted">Comparte este código y gana 5% de comisión por cada depósito.</small>
+    <label class="form-label fw-bold">TU ENLACE DE REFERIDO</label>
+    <div class="input-group mb-2">
+        <input type="text" class="form-control form-control-loop" id="userReferralLink" 
+               value="Conecta tu wallet para generar tu enlace" readonly>
+        <button class="btn btn-loop" onclick="copyReferralLink()">
+            <i class="bi bi-copy"></i> Copiar Enlace
+        </button>
     </div>
+    
+    <!-- Mostrar solo el código también -->
+    <div class="d-flex align-items-center justify-content-between mt-2">
+        <small class="text-muted">
+            <i class="bi bi-code me-1"></i>
+            Código: <span id="referralCodeText" class="fw-bold">-</span>
+        </small>
+        <button class="btn btn-sm btn-outline-light" onclick="copyReferralCodeOnly()">
+            <i class="bi bi-clipboard me-1"></i> Copiar Código
+        </button>
+    </div>
+    <small class="text-muted">Comparte este enlace y gana 5% de comisión por cada depósito realizado.</small>
+</div>
     
     <!-- Código de referido para usar -->
     <div class="mt-4">
@@ -1198,6 +1209,8 @@
             
             LOOP_CONTRACT_ADDRESS: "0x53ac613833eB00B05B9f2B4CC9549086E2f1E1dD",
             
+			
+			REFERRAL_BASE_URL: window.location.origin,
             
             INTEREST_RATE: 0.25,
             
@@ -2632,10 +2645,12 @@
         'bi-check-circle-fill', txHash);
 }
 
+// Función para cargar datos de referidos
 async function loadReferralData() {
     if (!state.account) {
         console.log("No hay cuenta conectada para cargar datos de referidos");
-        document.getElementById('userReferralCode').value = "Conecta tu wallet";
+        document.getElementById('userReferralLink').value = "Conecta tu wallet para generar tu enlace";
+        document.getElementById('referralCodeText').textContent = "-";
         return;
     }
     
@@ -2654,11 +2669,19 @@ async function loadReferralData() {
         
         if (codeData.success && codeData.referral_code) {
             state.userReferralCode = codeData.referral_code;
-            document.getElementById('userReferralCode').value = codeData.referral_code;
-            console.log("Código de referido establecido:", codeData.referral_code);
+            
+            // Generar enlace de referido completo
+            const referralLink = `${LOOP_CONFIG.REFERRAL_BASE_URL}?ref=${codeData.referral_code}`;
+            
+            // Actualizar la UI
+            document.getElementById('userReferralLink').value = referralLink;
+            document.getElementById('referralCodeText').textContent = codeData.referral_code;
+            
+            console.log("Enlace de referido generado:", referralLink);
         } else {
             console.warn("No se pudo obtener el código de referido:", codeData.message);
-            document.getElementById('userReferralCode').value = "Error al cargar";
+            document.getElementById('userReferralLink').value = "Error al generar enlace";
+            document.getElementById('referralCodeText').textContent = "Error";
         }
         
         // Obtener estadísticas de referidos
@@ -2680,11 +2703,60 @@ async function loadReferralData() {
         
     } catch (error) {
         console.error('Error cargando datos de referidos:', error);
-        document.getElementById('userReferralCode').value = "Error de conexión";
+        document.getElementById('userReferralLink').value = "Error de conexión";
+        document.getElementById('referralCodeText').textContent = "Error";
     }
 }
 
-// Función para verificar código de referido (mejorada con logs)
+// Función para copiar el ENLACE completo de referido
+function copyReferralLink() {
+    const referralLinkInput = document.getElementById('userReferralLink');
+    const link = referralLinkInput.value;
+    
+    if (!link || link === "Conecta tu wallet para generar tu enlace" || link === "Error de conexión" || link === "Error al generar enlace") {
+        showLoopModal('info', 'Conecta tu wallet', 'Conecta tu wallet para generar tu enlace de referido.', 'bi-info-circle-fill');
+        return;
+    }
+    
+    navigator.clipboard.writeText(link).then(() => {
+        showLoopModal('success', 'Enlace copiado', 
+            `<strong>Enlace copiado al portapapeles:</strong><br>
+             <small class="text-muted">${link}</small><br><br>
+             Comparte este enlace con tus amigos para ganar comisiones.`, 
+            'bi-link-45deg');
+        
+        // Feedback visual
+        referralLinkInput.style.borderColor = '#26a17b';
+        referralLinkInput.style.boxShadow = '0 0 0 3px rgba(38, 161, 123, 0.2)';
+        setTimeout(() => {
+            referralLinkInput.style.borderColor = '';
+            referralLinkInput.style.boxShadow = '';
+        }, 2000);
+        
+    }).catch(err => {
+        console.error('Error al copiar el enlace:', err);
+        showLoopModal('error', 'Error', 'No se pudo copiar el enlace. Intenta seleccionar y copiar manualmente.', 'bi-exclamation-triangle-fill');
+    });
+}
+
+// Función para copiar solo el CÓDIGO de referido
+function copyReferralCodeOnly() {
+    if (!state.userReferralCode || state.userReferralCode === "Error") {
+        showLoopModal('info', 'Sin código disponible', 'Conecta tu wallet para obtener tu código de referido.', 'bi-info-circle-fill');
+        return;
+    }
+    
+    navigator.clipboard.writeText(state.userReferralCode).then(() => {
+        showLoopModal('success', 'Código copiado', 
+            `Código <strong>${state.userReferralCode}</strong> copiado al portapapeles.`, 
+            'bi-clipboard-check');
+    }).catch(err => {
+        console.error('Error al copiar código:', err);
+        showLoopModal('error', 'Error', 'No se pudo copiar el código. Intenta manualmente.', 'bi-exclamation-triangle-fill');
+    });
+}
+
+// Función para verificar código de referido (mejorada)
 async function verifyReferralCode() {
     const codeInput = document.getElementById('inputReferralCode');
     const code = codeInput.value.trim().toUpperCase();
@@ -2715,34 +2787,65 @@ async function verifyReferralCode() {
         
         if (data.success) {
             state.referralCode = code;
-            statusElement.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i> Código válido. Referido por: ${data.wallet_address.substring(0, 6)}...${data.wallet_address.substring(38)}</span>`;
+            statusElement.innerHTML = `
+                <span class="text-success">
+                    <i class="bi bi-check-circle me-1"></i> 
+                    Código válido. Referido por: ${data.wallet_address.substring(0, 6)}...${data.wallet_address.substring(38)}
+                </span>
+                <br>
+                <small class="text-muted">Recibirás un 5% extra al usar este código.</small>
+            `;
             console.log("Código de referido verificado correctamente:", code);
         } else {
             state.referralCode = null;
-            statusElement.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i> Código inválido</span>';
+            statusElement.innerHTML = `
+                <span class="text-danger">
+                    <i class="bi bi-x-circle me-1"></i> 
+                    Código inválido
+                </span>
+                <br>
+                <small class="text-muted">Verifica el código e inténtalo de nuevo.</small>
+            `;
             console.log("Código de referido inválido:", code);
         }
     } catch (error) {
         console.error('Error verificando código:', error);
-        statusElement.innerHTML = '<span class="text-danger">Error al verificar el código</span>';
+        statusElement.innerHTML = `
+            <span class="text-danger">Error al verificar el código</span>
+            <br>
+            <small class="text-muted">Problema de conexión. Intenta más tarde.</small>
+        `;
         state.referralCode = null;
     }
 }
 
-// Función para copiar código de referido (mejorada)
-function copyReferralCode() {
-    if (!state.userReferralCode || state.userReferralCode === "Conecta tu wallet" || state.userReferralCode === "Error de conexión") {
-        showLoopModal('info', 'Conecta tu wallet', 'Conecta tu wallet para obtener tu código de referido.', 'bi-info-circle-fill');
-        return;
-    }
+// Función para auto-completar el código si viene en la URL
+function checkUrlForReferralCode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refCode = urlParams.get('ref');
     
-    navigator.clipboard.writeText(state.userReferralCode).then(() => {
-        showLoopModal('success', 'Código copiado', `Tu código <strong>${state.userReferralCode}</strong> ha sido copiado al portapapeles.`, 'bi-check-circle-fill');
-    }).catch(err => {
-        console.error('Error al copiar:', err);
-        showLoopModal('error', 'Error', 'No se pudo copiar el código. Intenta manualmente.', 'bi-exclamation-triangle-fill');
-    });
+    if (refCode && refCode.length === 6) {
+        document.getElementById('inputReferralCode').value = refCode.toUpperCase();
+        
+        // Opcional: auto-verificar después de conectar wallet
+        if (state.account) {
+            setTimeout(() => {
+                verifyReferralCode();
+            }, 1000);
+        }
+        
+        showLoopModal('info', 'Código de referido detectado', 
+            `Se detectó el código <strong>${refCode.toUpperCase()}</strong> en la URL.<br>
+             Si quieres apoyar al referido, verifica el código.`, 
+            'bi-link-45deg');
+    }
 }
+
+// Llama a esta función al inicializar la app
+document.addEventListener('DOMContentLoaded', function() {
+    initLoopApp();
+    checkUrlForReferralCode(); // Añade esta línea
+});
     </script>
 </body>
 </html>
