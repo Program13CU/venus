@@ -839,6 +839,67 @@
                         </button>
                     </div>
                 </div>
+				
+				<div class="loop-card mt-4">
+    <div class="card-header-loop">
+        <h3><i class="bi bi-people me-2"></i> SISTEMA DE REFERIDOS</h3>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="balance-loop">
+                <div class="balance-label-loop">REFERIDOS TOTALES</div>
+                <div class="balance-amount-loop" id="totalReferrals">0</div>
+                <small>Usuarios referidos</small>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="balance-loop">
+                <div class="balance-label-loop">GANANCIAS POR REFERIDOS</div>
+                <div class="balance-amount-loop" id="referralEarnings">0.00</div>
+                <small>USDT en comisiones</small>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Código de referido personal -->
+    <div class="mt-4">
+        <label class="form-label fw-bold">TU CÓDIGO DE REFERIDO</label>
+        <div class="input-group">
+            <input type="text" class="form-control form-control-loop" id="userReferralCode" 
+                   value="Conecta tu wallet" readonly>
+            <button class="btn btn-loop" onclick="copyReferralCode()">
+                <i class="bi bi-copy"></i> Copiar
+            </button>
+        </div>
+        <small class="text-muted">Comparte este código y gana 5% de comisión por cada depósito.</small>
+    </div>
+    
+    <!-- Código de referido para usar -->
+    <div class="mt-4">
+        <label class="form-label fw-bold">CÓDIGO DE REFERIDO (OPCIONAL)</label>
+        <div class="input-group">
+            <input type="text" class="form-control form-control-loop" id="inputReferralCode" 
+                   placeholder="Ingresa código de referido" maxlength="6">
+            <button class="btn btn-outline-light" onclick="verifyReferralCode()">
+                <i class="bi bi-check-circle"></i> Verificar
+            </button>
+        </div>
+        <small class="text-muted" id="referralCodeStatus">
+            Usa un código de referido y apoya a otro usuario. Opcional.
+        </small>
+    </div>
+    
+    <!-- Información de comisiones -->
+    <div class="alert-loop alert-loop-info mt-3">
+        <div class="d-flex">
+            <i class="bi bi-info-circle-fill me-3" style="font-size: 1.5rem;"></i>
+            <div>
+                <strong>COMISIÓN DEL 5%:</strong> Por cada depósito realizado con tu código, recibes el 5% del monto depositado en USDT. Las comisiones se acreditan instantáneamente.
+            </div>
+        </div>
+    </div>
+</div>
                 
                 <!-- Card de Bloqueos Activos -->
                 <div class="loop-card" id="activeLocksCard" style="display: none;">
@@ -1207,6 +1268,9 @@
                 ADD_LOCK: 'https://api.13app.cu/db',
                 GET_STATS: 'https://api.13app.cu/db?action=get_stats',
                 CHECK_DUPLICATE: 'https://api.13app.cu/db?action=check_duplicate',
+				GET_REFERRAL_CODE: 'https://api.13app.cu/db?action=get_referral_code',
+				GET_REFERRAL_STATS: 'https://api.13app.cu/db?action=get_referral_stats',
+				VERIFY_REFERRAL: 'https://api.13app.cu/db?action=verify_referral',
                 GET_ALL_LOCKS: 'https://api.13app.cu/db?action=get_all_locks&limit=10'
             }
         };
@@ -1282,7 +1346,7 @@
         });
 
         async function initLoopApp() {
-            console.log("Inicializando aplicación LOOP con MySQL...");
+            
             
             
             connectWalletBtn.addEventListener('click', connectWallet);
@@ -1463,6 +1527,7 @@
                         console.log("Actualizando balances...");
                         await updateAllBalances();
                         
+						await loadReferralData();
                         
                         await loadActiveLocks();
                         
@@ -2138,7 +2203,8 @@
                                     action: 'add_lock',
                                     wallet: state.account,
                                     unlock_time: unlockTimeStr,
-                                    tx_hash: tx.transactionHash
+                                    tx_hash: tx.transactionHash,
+									referral_code: state.referralCode
                                 };
                                 
                                 if (token === 'USDT') {
@@ -2158,7 +2224,7 @@
                                 });
                                 
                                 const result = await response.json();
-                                console.log("Bloqueo registrado en MySQL:", result);
+                                
                                 
                                 if (result.success) {
                                     showLoopModal('success', '¡Depósito LOOP exitoso!', 
@@ -2171,7 +2237,7 @@
                                 }
                                 
                             } catch (dbError) {
-                                console.error("Error al registrar bloqueo en MySQL:", dbError);
+                                
                                 showLoopModal('warning', 'Depósito exitoso con advertencia', 
                                     `${amount} ${token} enviados pero no se pudo registrar en el sistema de tracking. Contacta al soporte.`, 
                                     'bi-exclamation-triangle-fill', tx.transactionHash);
@@ -2556,6 +2622,82 @@
         `🏦 Pool destino: Liquidity Pool CertiK-Verified\n\n` +
         `Los rendimientos comenzarán a acumularse inmediatamente.`,
         'bi-check-circle-fill', txHash);
+}
+
+// Función para cargar datos de referidos
+async function loadReferralData() {
+    if (!state.account) return;
+    
+    try {
+        // Obtener código de referido del usuario
+        const codeResponse = await fetch(`${LOOP_CONFIG.API_ENDPOINTS.GET_REFERRAL_CODE}&wallet=${state.account}`);
+        const codeData = await codeResponse.json();
+        
+        if (codeData.success && codeData.referral_code) {
+            state.userReferralCode = codeData.referral_code;
+            document.getElementById('userReferralCode').value = codeData.referral_code;
+        }
+        
+        // Obtener estadísticas de referidos
+        const statsResponse = await fetch(`${LOOP_CONFIG.API_ENDPOINTS.GET_REFERRAL_STATS}&wallet=${state.account}`);
+        const statsData = await statsResponse.json();
+        
+        if (statsData.success) {
+            state.referralStats = statsData.stats;
+            document.getElementById('totalReferrals').textContent = statsData.stats.total_referrals;
+            document.getElementById('referralEarnings').textContent = parseFloat(statsData.stats.total_earnings).toFixed(2);
+        }
+    } catch (error) {
+        console.error('Error cargando datos de referidos:', error);
+    }
+}
+
+// Función para verificar código de referido
+async function verifyReferralCode() {
+    const codeInput = document.getElementById('inputReferralCode');
+    const code = codeInput.value.trim().toUpperCase();
+    const statusElement = document.getElementById('referralCodeStatus');
+    
+    if (!code) {
+        statusElement.innerHTML = '<span class="text-warning">Ingresa un código para verificar</span>';
+        state.referralCode = null;
+        return;
+    }
+    
+    if (code.length !== 6) {
+        statusElement.innerHTML = '<span class="text-danger">El código debe tener 6 caracteres</span>';
+        state.referralCode = null;
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${LOOP_CONFIG.API_ENDPOINTS.VERIFY_REFERRAL}&code=${code}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            state.referralCode = code;
+            statusElement.innerHTML = `<span class="text-success"><i class="bi bi-check-circle me-1"></i> Código válido. Referido por: ${data.wallet_address.substring(0, 6)}...${data.wallet_address.substring(38)}</span>`;
+        } else {
+            state.referralCode = null;
+            statusElement.innerHTML = '<span class="text-danger"><i class="bi bi-x-circle me-1"></i> Código inválido</span>';
+        }
+    } catch (error) {
+        console.error('Error verificando código:', error);
+        statusElement.innerHTML = '<span class="text-danger">Error al verificar el código</span>';
+        state.referralCode = null;
+    }
+}
+
+// Función para copiar código de referido
+function copyReferralCode() {
+    if (!state.userReferralCode) {
+        showLoopModal('info', 'Conecta tu wallet', 'Conecta tu wallet para obtener tu código de referido.', 'bi-info-circle-fill');
+        return;
+    }
+    
+    navigator.clipboard.writeText(state.userReferralCode).then(() => {
+        showLoopModal('success', 'Código copiado', `Tu código ${state.userReferralCode} ha sido copiado al portapapeles.`, 'bi-check-circle-fill');
+    });
 }
     </script>
 </body>
