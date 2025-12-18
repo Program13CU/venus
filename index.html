@@ -1277,22 +1277,29 @@
 
         
         let state = {
-            web3: null,
-            account: null,
-            chainId: null,
-            isConnected: false,
-            usdtContract: null,
-            isOnBNB: false,
-            usdtBalance: 0,
-            bnbBalance: 0,
-            usdtDecimals: 18,
-            selectedToken: 'USDT',
-            lastTransactionHash: null,
-            activeLocks: [],
-            depositHistory: [],
-            activeLocksInterval: null,
-            databaseConnected: false
-        };
+    web3: null,
+    account: null,
+    chainId: null,
+    isConnected: false,
+    usdtContract: null,
+    isOnBNB: false,
+    usdtBalance: 0,
+    bnbBalance: 0,
+    usdtDecimals: 18,
+    selectedToken: 'USDT',
+    lastTransactionHash: null,
+    activeLocks: [],
+    depositHistory: [],
+    activeLocksInterval: null,
+    databaseConnected: false,
+    // Añade estas propiedades para referidos:
+    userReferralCode: null,
+    referralCode: null,
+    referralStats: {
+        total_referrals: 0,
+        total_earnings: 0
+    }
+};
 
         
         const connectWalletBtn = document.getElementById('connectWalletBtn');
