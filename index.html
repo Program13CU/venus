@@ -2702,7 +2702,7 @@ function generateReferralCode(wallet) {
 function updateReferralUI() {
     if (state.referralCode) {
         referralCodeInput.value = state.referralCode;
-        referralLinkInput.value = `https://venus-bnb.vercel.app/ref?code=${state.referralCode}`;
+        referralLinkInput.value = `${currentDomain}${currentPath}?ref=${state.referralCode}`;
         
         // Habilitar botones de copia
         copyReferralBtn.disabled = false;
@@ -2900,6 +2900,35 @@ function shareReferral() {
         navigator.clipboard.writeText(shareText).then(() => {
             showLoopModal('success', '¡Listo para compartir!', 'El mensaje ha sido copiado al portapapeles. Pégalo en tus redes sociales.', 'bi-check-circle-fill');
         });
+    }
+}
+
+// CAPTURAR CÓDIGO DE REFERIDO DE LA URL
+function getReferralCodeFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('ref') || urlParams.get('code');
+}
+
+// Guardar código de referido en localStorage
+const referralParam = getReferralCodeFromURL();
+if (referralParam) {
+    localStorage.setItem('referral_code', referralParam);
+    console.log("Código de referido detectado:", referralParam);
+    
+    // Mostrar notificación
+    setTimeout(() => {
+        showLoopModal('info', '¡Código de referido aplicado!', 
+            `Has sido referido por un amigo. Tu código de referencia: ${referralParam}`, 
+            'bi-people-fill');
+    }, 2000);
+}
+
+// Modificar el enlace de referido para que use tu dominio real
+function updateReferralLink() {
+    if (state.referralCode) {
+        const currentDomain = window.location.origin;
+        const currentPath = window.location.pathname;
+        referralLinkInput.value = `${currentDomain}${currentPath}?ref=${state.referralCode}`;
     }
 }
     </script>
