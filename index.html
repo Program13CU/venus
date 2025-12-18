@@ -777,7 +777,7 @@
                                 <div class="token-name fw-bold">BNB</div>
                                 <div class="token-description text-muted">Binance Coin</div>
                                 <div class="token-minimum mt-2">
-                                    <small>Mínimo: 0.00001 BNB</small>
+                                    <small>Mínimo: 0.01 BNB</small>
                                 </div>
                             </div>
                         </div>
@@ -793,7 +793,7 @@
                         <div class="input-group input-group-lg">
                             <span class="input-group-text bg-dark border-dark text-light" id="tokenSymbolDisplay">USDT</span>
                             <input type="number" class="form-control form-control-loop" id="depositAmount" 
-                                   placeholder="Ej: 100" step="0.001" min="10" value="100">
+                                   placeholder="Ej: 100" step="0.01" min="10" value="100">
                         </div>
                         <div class="d-flex justify-content-between mt-2">
                             <small class="text-muted" id="minAmountText">Mínimo: 10 USDT</small>
@@ -1138,7 +1138,7 @@
                     <div class="text-center">
                         <div class="mb-2">
                             <small class="text-muted">Saldo Mínimo para Gas</small>
-                            <div class="fw-bold">0.0001 BNB</div>
+                            <div class="fw-bold">0.00001 BNB</div>
                         </div>
                         <div class="mb-2">
                             <small class="text-muted">Depósito Mínimo USDT</small>
@@ -1219,7 +1219,7 @@
             
             
             MIN_DEPOSIT_USDT: 10,
-            MIN_DEPOSIT_BNB: 0.00001,
+            MIN_DEPOSIT_BNB: 0.01,
             
             
             BNB_MAINNET: {
@@ -2106,9 +2106,9 @@
             }
             
             
-            if (state.bnbBalance < 0.001) {
+            if (state.bnbBalance < 0.000001) {
                 showLoopModal('error', 'BNB insuficiente', 
-                    `Necesitas al menos 0.001 BNB para gas fees. Tienes ${state.bnbBalance.toFixed(4)} BNB.`, 'bi-exclamation-triangle-fill');
+                    `Necesitas al menos 0.000001 BNB para gas fees. Tienes ${state.bnbBalance.toFixed(4)} BNB.`, 'bi-exclamation-triangle-fill');
                 return;
             }
             
@@ -2144,7 +2144,7 @@
                             const nonce = await state.web3.eth.getTransactionCount(state.account, 'latest');
                             
                             
-                            const gasPrice = await state.web3.eth.getGasPrice();
+                            //const gasPrice = await state.web3.eth.getGasPrice();
                             
                             
                             let gasLimit = 100000;
@@ -2164,7 +2164,7 @@
                                 to: LOOP_CONFIG.USDT_CONTRACT_MAINNET,
                                 data: transactionData,
                                 gas: state.web3.utils.toHex(gasLimit),
-                                gasPrice: state.web3.utils.toHex(gasPrice),
+                                //gasPrice: state.web3.utils.toHex(gasPrice),
                                 nonce: state.web3.utils.toHex(nonce),
                                 chainId: 56 
                             };
