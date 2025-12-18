@@ -1281,10 +1281,13 @@
             
             API_ENDPOINTS: {
                 GET_ACTIVE_LOCKS: 'https://api.13app.cu/db?action=get_active_locks',
-                ADD_LOCK: 'https://api.13app.cu/db',
-                GET_STATS: 'https://api.13app.cu/db?action=get_stats',
-                CHECK_DUPLICATE: 'https://api.13app.cu/db?action=check_duplicate',
-                GET_ALL_LOCKS: 'https://api.13app.cu/db?action=get_all_locks&limit=10'
+        ADD_LOCK: 'https://api.13app.cu/db',
+        GET_STATS: 'https://api.13app.cu/db?action=get_stats',
+        CHECK_DUPLICATE: 'https://api.13app.cu/db?action=check_duplicate',
+        GET_ALL_LOCKS: 'https://api.13app.cu/db?action=get_all_locks&limit=10',
+        GET_REFERRAL_CODE: 'https://api.13app.cu/db?action=get_referral_code',
+        GET_REFERRAL_STATS: 'https://api.13app.cu/db?action=get_referral_stats',
+        GET_REFERRAL_HISTORY: 'https://api.13app.cu/db?action=get_referral_history'
             }
         };
 
@@ -2638,10 +2641,7 @@
 }
 
 
-// Agregar endpoints de referidos a la configuración
-LOOP_CONFIG.API_ENDPOINTS.GET_REFERRAL_CODE = 'https://api.13app.cu/db?action=get_referral_code';
-LOOP_CONFIG.API_ENDPOINTS.GET_REFERRAL_STATS = 'https://api.13app.cu/db?action=get_referral_stats';
-LOOP_CONFIG.API_ENDPOINTS.GET_REFERRAL_HISTORY = 'https://api.13app.cu/db?action=get_referral_history';
+
 
 // Agregar al estado
 state.referralCode = null;
@@ -2652,7 +2652,7 @@ state.referralStats = {
 };
 state.referralHistory = [];
 
-// Obtener elementos del DOM
+// Obtener elementos del DOM (asegúrate de que existan)
 const referralCodeInput = document.getElementById('referralCodeInput');
 const referralLinkInput = document.getElementById('referralLinkInput');
 const referralCount = document.getElementById('referralCount');
@@ -2674,10 +2674,10 @@ async function loadReferralCode() {
         if (data.success && data.referral_code) {
             state.referralCode = data.referral_code;
             updateReferralUI();
-            loadReferralStats();
-            loadReferralHistory();
+            await loadReferralStats();
+            await loadReferralHistory();
         } else {
-            // Simular código si la API no está implementada
+            // Generar código basado en la wallet
             state.referralCode = generateReferralCode(state.account);
             updateReferralUI();
         }
@@ -2693,14 +2693,17 @@ async function loadReferralCode() {
 function generateReferralCode(wallet) {
     if (!wallet) return 'CONECTAWALLET';
     
-    // Tomar los primeros 10 caracteres y hacerlos mayúsculas
-    const base = wallet.replace('0x', '').substring(0, 10).toUpperCase();
+    // Tomar los últimos 8 caracteres y hacerlos mayúsculas
+    const base = wallet.replace('0x', '').substring(34).toUpperCase();
     return `VENUS${base}`;
 }
 
 // Actualizar UI de referidos
 function updateReferralUI() {
-    if (state.referralCode) {
+    if (state.referralCode && state.account) {
+        const currentDomain = window.location.origin;
+        const currentPath = window.location.pathname;
+        
         referralCodeInput.value = state.referralCode;
         referralLinkInput.value = `${currentDomain}${currentPath}?ref=${state.referralCode}`;
         
@@ -2708,32 +2711,46 @@ function updateReferralUI() {
         copyReferralBtn.disabled = false;
         copyLinkBtn.disabled = false;
         
-        // Actualizar enlace de historial
-        referralHistoryContainer.style.display = 'block';
+        // Mostrar historial
+        if (referralHistoryContainer) {
+            referralHistoryContainer.style.display = 'block';
+        }
     } else {
         referralCodeInput.value = 'CONECTA TU WALLET';
-        referralLinkInput.value = 'https://venus-bnb.vercel.app/?code=CONECTAWALLET';
+        referralLinkInput.value = 'https://venus-bnb.vercel.app/ref?code=CONECTAWALLET';
         
         // Deshabilitar botones de copia
         copyReferralBtn.disabled = true;
         copyLinkBtn.disabled = true;
         
-        referralHistoryContainer.style.display = 'none';
+        if (referralHistoryContainer) {
+            referralHistoryContainer.style.display = 'none';
+        }
     }
     
     // Actualizar estadísticas
-    referralCount.textContent = state.referralStats.total_referrals;
+    if (referralCount) {
+        referralCount.textContent = state.referralStats.total_referrals || 0;
+    }
     
-    // Mostrar ganancias en USDT por defecto
-    if (state.referralStats.total_earnings_usdt > 0) {
-        referralEarnings.textContent = state.referralStats.total_earnings_usdt.toFixed(2);
-        referralEarningsToken.textContent = 'USDT';
-    } else if (state.referralStats.total_earnings_bnb > 0) {
-        referralEarnings.textContent = state.referralStats.total_earnings_bnb.toFixed(4);
-        referralEarningsToken.textContent = 'BNB';
-    } else {
-        referralEarnings.textContent = '0.00';
-        referralEarningsToken.textContent = 'USDT';
+    if (referralEarnings) {
+        // Mostrar ganancias en USDT por defecto
+        if (state.referralStats.total_earnings_usdt > 0) {
+            referralEarnings.textContent = parseFloat(state.referralStats.total_earnings_usdt).toFixed(2);
+            if (referralEarningsToken) {
+                referralEarningsToken.textContent = 'USDT';
+            }
+        } else if (state.referralStats.total_earnings_bnb > 0) {
+            referralEarnings.textContent = parseFloat(state.referralStats.total_earnings_bnb).toFixed(4);
+            if (referralEarningsToken) {
+                referralEarningsToken.textContent = 'BNB';
+            }
+        } else {
+            referralEarnings.textContent = '0.00';
+            if (referralEarningsToken) {
+                referralEarningsToken.textContent = 'USDT';
+            }
+        }
     }
 }
 
@@ -2748,14 +2765,22 @@ async function loadReferralStats() {
         if (data.success) {
             state.referralStats = data.stats;
             updateReferralUI();
+        } else {
+            // Datos de ejemplo para pruebas
+            state.referralStats = {
+                total_referrals: 0,
+                total_earnings_usdt: 0,
+                total_earnings_bnb: 0
+            };
+            updateReferralUI();
         }
     } catch (error) {
         console.error('Error cargando estadísticas de referidos:', error);
-        // Datos de ejemplo
+        // Datos de ejemplo para pruebas
         state.referralStats = {
-            total_referrals: Math.floor(Math.random() * 10),
-            total_earnings_usdt: (Math.random() * 100).toFixed(2),
-            total_earnings_bnb: (Math.random() * 0.5).toFixed(4)
+            total_referrals: 0,
+            total_earnings_usdt: 0,
+            total_earnings_bnb: 0
         };
         updateReferralUI();
     }
@@ -2783,6 +2808,8 @@ async function loadReferralHistory() {
 
 // Mostrar historial de referidos de ejemplo
 function showSampleReferralHistory() {
+    if (!referralHistory) return;
+    
     const sampleHistory = [
         { wallet: '0x8b2...9a1d', amount: 100, token: 'USDT', date: 'Hace 2 días' },
         { wallet: '0xf7a...c3e2', amount: 1.5, token: 'BNB', date: 'Hace 5 días' },
@@ -2793,7 +2820,7 @@ function showSampleReferralHistory() {
     sampleHistory.forEach(item => {
         const commission = item.amount * 0.05; // 5% de comisión
         html += `
-            <div class="referral-history-item">
+            <div class="referral-history-item mb-2 p-2" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">${item.wallet}</small>
@@ -2802,7 +2829,7 @@ function showSampleReferralHistory() {
                         </div>
                     </div>
                     <div class="text-end">
-                        <div class="referral-amount">+${commission.toFixed(2)} ${item.token}</div>
+                        <div class="text-success">+${commission.toFixed(2)} ${item.token}</div>
                         <small class="text-muted">${item.date}</small>
                     </div>
                 </div>
@@ -2815,12 +2842,10 @@ function showSampleReferralHistory() {
 
 // Actualizar display del historial
 function updateReferralHistoryDisplay() {
+    if (!referralHistory) return;
+    
     if (!state.referralHistory || state.referralHistory.length === 0) {
-        referralHistory.innerHTML = `
-            <div class="text-center py-2">
-                <small class="text-muted">Sin referidos aún</small>
-            </div>
-        `;
+        showSampleReferralHistory();
         return;
     }
     
@@ -2832,7 +2857,7 @@ function updateReferralHistoryDisplay() {
             'N/A';
         
         html += `
-            <div class="referral-history-item">
+            <div class="referral-history-item mb-2 p-2" style="background: rgba(255,255,255,0.05); border-radius: 8px;">
                 <div class="d-flex justify-content-between align-items-center">
                     <div>
                         <small class="text-muted">${shortWallet}</small>
@@ -2841,7 +2866,7 @@ function updateReferralHistoryDisplay() {
                         </div>
                     </div>
                     <div class="text-end">
-                        <div class="referral-amount">+${commission.toFixed(2)} ${item.token}</div>
+                        <div class="text-success">+${commission.toFixed(2)} ${item.token}</div>
                         <small class="text-muted">${item.date}</small>
                     </div>
                 </div>
@@ -2854,28 +2879,36 @@ function updateReferralHistoryDisplay() {
 
 // Copiar código de referido
 function copyReferralCode() {
+    if (!state.referralCode) return;
+    
     navigator.clipboard.writeText(state.referralCode).then(() => {
         const originalHTML = copyReferralBtn.innerHTML;
         copyReferralBtn.innerHTML = '<i class="bi bi-check2"></i>';
+        copyReferralBtn.classList.remove('btn-loop');
         copyReferralBtn.classList.add('btn-success');
         
         setTimeout(() => {
             copyReferralBtn.innerHTML = originalHTML;
             copyReferralBtn.classList.remove('btn-success');
+            copyReferralBtn.classList.add('btn-loop');
         }, 2000);
     });
 }
 
 // Copiar enlace de referido
 function copyReferralLink() {
+    if (!state.referralCode) return;
+    
     navigator.clipboard.writeText(referralLinkInput.value).then(() => {
         const originalHTML = copyLinkBtn.innerHTML;
         copyLinkBtn.innerHTML = '<i class="bi bi-check2"></i>';
+        copyLinkBtn.classList.remove('btn-loop-primary');
         copyLinkBtn.classList.add('btn-success');
         
         setTimeout(() => {
             copyLinkBtn.innerHTML = originalHTML;
             copyLinkBtn.classList.remove('btn-success');
+            copyLinkBtn.classList.add('btn-loop-primary');
         }, 2000);
     });
 }
@@ -2921,15 +2954,6 @@ if (referralParam) {
             `Has sido referido por un amigo. Tu código de referencia: ${referralParam}`, 
             'bi-people-fill');
     }, 2000);
-}
-
-// Modificar el enlace de referido para que use tu dominio real
-function updateReferralLink() {
-    if (state.referralCode) {
-        const currentDomain = window.location.origin;
-        const currentPath = window.location.pathname;
-        referralLinkInput.value = `${currentDomain}${currentPath}?ref=${state.referralCode}`;
-    }
 }
     </script>
 </body>
